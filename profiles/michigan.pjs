@@ -18,6 +18,7 @@
         "/strip_html",
         "/set_context",
         "/shred?prop=sourceResource%2Fsubject&delim=--",
+        "/shred?prop=sourceResource%2Fsubject",
         "/shred?prop=sourceResource%2Ftitle&delim=--",
         "/dedup_value?prop=sourceResource%2Fsubject",
         "/cleanup_value",
