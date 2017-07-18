@@ -69,12 +69,22 @@ class TNMapper(MODSMapper):
                 self.update_source_resource({"date": date_created})
 
     def map_description(self):
-        path = "/metadata/mods/abstract"
-        if exists(self.provider_data, path):
-            description = getprop(self.provider_data, path)
+        description = []
 
-            if description:
-                self.update_source_resource({"description": description})
+        path = "/metadata/mods/abstract"
+        for d in iterify(getprop(self.provider_data, path, True)):
+            description.append(textnode(d))
+
+        note_path = "/metadata/mods/note"
+        for d in iterify(getprop(self.provider_data, note_path, True)):
+            try:
+                displayLabel = getprop(d, "displayLabel", True)
+                if displayLabel and displayLabel == "Attribution":
+                    description.append(textnode(d))
+            except:
+                continue
+        if description:
+            self.update_source_resource({"description": description})
 
     def map_extent(self):
         path = "/metadata/mods/physicalDescription/extent"
@@ -128,15 +138,47 @@ class TNMapper(MODSMapper):
             if pub:
                 self.update_source_resource({"publisher": pub})
 
+    """
+    Update mapping for rights statements:
+
+        *  <accessCondition type="local rights statement"> to <dc:rights>
+        * <accessCondition type="use and reproduction" 
+        xlink:href="http://rightsstatements.org/....">VALUE</accessCondition> 
+        
+            to <edm:rights> (we'll want to map the xlink:href attribute value)
+        
+        *  add <note displayLabel="Attribution"> to the <dc:description> mapping in addition to anything else there.
+
+        We'll want to check these in CQA and ultimately do a production ingest, although that may be in a new ticket"""
+
     def map_rights(self):
         path = "/metadata/mods/accessCondition"
         rights = []
         if exists(self.provider_data, path):
             for r in iterify(getprop(self.provider_data, path)):
-                rights.append(textnode(r))
+                t = getprop(r, "type", True)
+                if t and t == "local rights statement":
+                    rights.append(textnode(r))
 
             if rights:
                 self.update_source_resource({"rights": rights})
+
+    def map_edm_rights(self):
+        """<accessCondition type="use and reproduction"
+        xlink:href="http://rightsstatements.org/....">VALUE</accessCondition>
+        """
+        path = "/metadata/mods/accessCondition"
+        edm_rights = ""
+        if exists(self.provider_data, path):
+            for r in iterify(getprop(self.provider_data, path)):
+                t = getprop(r, "type", True)
+                rs = getprop(r, "xlink:href", True)
+                if t and rs and t == "use and reproduction":
+                    edm_rights = textnode(rs)
+
+        if edm_rights:
+            self.mapped_data.update({"rights": edm_rights})
+
 
     def map_spatial_and_subject_and_temporal(self):
         path = "/metadata/mods/subject"
@@ -160,13 +202,8 @@ class TNMapper(MODSMapper):
                         temporals.append(textnode(t))
 
                 for s_path in subject_props:
-
-                    logger.error(s_path)
-
-                    if exists(subject, s_path):
-                        for s in iterify(getprop(subject, s_path)):
-                            logger.error(textnode(s))
-                            subjects.append(s)
+                    for s in iterify(getprop(subject, s_path, True)):
+                        subjects.append(s)
 
         if spatials:
             self.update_source_resource({"spatial": spatials})
