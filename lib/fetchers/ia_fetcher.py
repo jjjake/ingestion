@@ -1,5 +1,5 @@
 import traceback
-import internetarchive
+from internetarchive import get_session
 from akara import logger
 from dplaingestion.fetchers.fetcher import Fetcher
 
@@ -20,11 +20,11 @@ class IAFetcher(Fetcher):
                             "'%s' was provided." % sets)
         self.create_collection_records()
         self.reset_response()
+        session = get_session(config=dict(general=dict(secure=False)))
         for token in self.collections.iterkeys():
             self.response['records'].append(self.collections[token])
             i = 1
-            for item in internetarchive \
-                        .search_items("collection:%s" % token,
+            for item in session.search_items("collection:%s" % token,
                                 request_kwargs=dict(timeout=60)) \
                         .iter_as_items():
                 try:
